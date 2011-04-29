@@ -93,6 +93,8 @@ class XMPP_handler(webapp.RequestHandler):
           else:
             Db.set_datastore(self._google_user)
           return
+        except twitter.TwitterInternalServerError:
+          pass
         else:
           if self._google_user.retry > 0:
             self._google_user.retry = 0
