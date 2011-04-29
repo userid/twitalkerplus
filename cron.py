@@ -14,6 +14,8 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.runtime.apiproxy_errors import DeadlineExceededError, CapabilityDisabledError
 from db import Db, GoogleUser, TwitterUser, IdList, Session, MODE_HOME, MODE_LIST, MODE_MENTION, MODE_DM
 
+MAX_DATASTORE_RETRY = 3
+
 class cron_handler(webapp.RequestHandler):
   def get(self, cron_id):
     cron_id = int(cron_id)
@@ -85,6 +87,8 @@ class cron_handler(webapp.RequestHandler):
       home_mention_statuses = []
       all_statuses = []
       at_username = '@' + google_user.enabled_user
+      statuses_content = ''
+      dm_content = ''
 
       if google_user.display_timeline & MODE_HOME or google_user.display_timeline & MODE_MENTION:
         home_rpc = api.get_home_timeline(since_id=google_user.last_msg_id, async=True)
@@ -171,30 +175,15 @@ class cron_handler(webapp.RequestHandler):
             del all_statuses[i]
           else:
             last = all_statuses[i]['id']
-        content = utils.parse_statuses(all_statuses, filter_self=True, reverse=False)
-        if content.strip():
-          IdList.flush(google_user.jid)
-          while CapabilitySet('xmpp').is_enabled():
-            try:
-              xmpp.send_message(google_user.jid, content)
-            except xmpp.Error:
-              pass
-            else:
-              break
+      if all_statuses:
+        IdList.flush(google_user.jid)
+        statuses_content = utils.parse_statuses(all_statuses, filter_self=True, reverse=False)
       if google_user.display_timeline & MODE_DM:
         try:
           statuses = api._process_result(dm_rpc)
-          content = utils.parse_statuses(statuses)
-          if content.strip():
-            while CapabilitySet('xmpp').is_enabled():
-              try:
-                xmpp.send_message(google_user.jid, _('DIRECT_MESSAGES') + '\n\n' + content)
-              except xmpp.Error:
-                pass
-              else:
-                break
-            if statuses[-1]['id'] > google_user.last_dm_id:
-              google_user.last_dm_id = statuses[-1]['id']
+          dm_content = utils.parse_statuses(statuses)
+          if statuses and statuses[-1]['id'] > google_user.last_dm_id:
+            google_user.last_dm_id = statuses[-1]['id']
         except twitter.TwitterInternalServerError:
           pass
         except BaseException:
@@ -202,8 +191,23 @@ class cron_handler(webapp.RequestHandler):
           traceback.print_exc(file=err)
           logging.error(google_user.jid + ' DM:\n' + err.getvalue())
       google_user.last_update = int(time())
-      Db.set_datastore(google_user)
-
+      if Db.set_datastore(google_user, MAX_DATASTORE_RETRY):
+        if statuses_content.strip():
+          while CapabilitySet('xmpp').is_enabled():
+            try:
+              xmpp.send_message(google_user.jid, statuses_content)
+            except xmpp.Error:
+              pass
+            else:
+              break
+        if dm_content.strip():
+          while CapabilitySet('xmpp').is_enabled():
+            try:
+              xmpp.send_message(google_user.jid, _('DIRECT_MESSAGES') + '\n\n' + dm_content)
+            except xmpp.Error:
+              pass
+            else:
+              break
 
 def main():
   application = webapp.WSGIApplication([('/cron(\d+)', cron_handler)], debug=True)
