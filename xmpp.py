@@ -879,13 +879,15 @@ class XMPP_handler(webapp.RequestHandler):
         TwitterUser.add(self._google_user.jid, oauth_token)
         return _('OAUTH_URL') % redirect_url
       import oauth_proxy
-
-      pin = oauth_proxy.login_oauth(redirect_url, args[0], args[1])
-      if pin == '':
+      from google.appengine.api import urlfetch
+      try:
+        pin = oauth_proxy.login_oauth(redirect_url, args[0], args[1])
+      except urlfetch.Error:
         return _('NETWORK_ERROR')
-      elif pin is None:
+      except twitter.TwitterAuthenticationError:
         return _('WRONG_USER_OR_PASSWORD')
-      return self.func_bind([pin], oauth_token)
+      else:
+        return self.func_bind([pin], oauth_token)
     else:
       raise NotImplementedError
 
