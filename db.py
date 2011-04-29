@@ -45,7 +45,7 @@ class Session(db.Model):
 class GoogleUser(db.Model):
   enabled_user = db.StringProperty(default='')
   shard = db.IntegerProperty(required=True)
-  interval = db.IntegerProperty(default=3)
+  interval = db.IntegerProperty(default=1)
   last_update = db.IntegerProperty(default=0) # remain count for update
   retry = db.IntegerProperty(default=0) # continuouse retry for fail
   last_list_id = db.IntegerProperty(default=0)
