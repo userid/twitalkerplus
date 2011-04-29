@@ -294,9 +294,12 @@ class XMPP_handler(webapp.RequestHandler):
     raise NotImplementedError
 
   def func_if(self, args):
-    if len(args) == 1 and _check_username(args[0]):
+    length = len(args)
+    if 1<= length <= 2 and _check_username(args[0]) and not (length == 2 and not _check_username(args[1])):
+      user_a = args[0]
+      user_b = self._google_user.enabled_user if length == 1 else args[1]
       try:
-        result = self._api.exists_friendship(args[0], self._google_user.enabled_user)
+        result = self._api.exists_friendship(user_a, user_b)
       except twitter.TwitterError, e:
         if 'Could not find both specified users' in e.message:
           return _('USER_NOT_FOUND') % args[0]
