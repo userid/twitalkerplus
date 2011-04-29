@@ -8,12 +8,11 @@ import config
 import re
 
 from string import Template
-from db import TwitterUser, GoogleUser, Db, Session, IdList, MODE_LIST, MODE_MENTION, MODE_DM, MODE_HOME
+from db import TwitterUser, GoogleUser, Db, IdList, MODE_LIST, MODE_MENTION, MODE_DM, MODE_HOME
 from pytz.gae import pytz
 from mylocale import gettext, LOCALES
 from google.appengine.ext import webapp
 from google.appengine.api import xmpp, memcache
-from google.appengine.runtime import DeadlineExceededError
 from google.appengine.api.capabilities import CapabilitySet
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, DeadlineExceededError
@@ -295,7 +294,7 @@ class XMPP_handler(webapp.RequestHandler):
 
   def func_if(self, args):
     length = len(args)
-    if 1<= length <= 2 and _check_username(args[0]) and not (length == 2 and not _check_username(args[1])):
+    if 1 <= length <= 2 and _check_username(args[0]) and not (length == 2 and not _check_username(args[1])):
       user_a = args[0]
       user_b = self._google_user.enabled_user if length == 1 else args[1]
       try:
@@ -392,14 +391,6 @@ class XMPP_handler(webapp.RequestHandler):
           self._google_user.display_timeline |= MODE_DM
         elif a == 'list':
           self._google_user.display_timeline |= MODE_LIST
-    s = Session.get_by_key_name(self._google_user.jid)
-    if not s and self._google_user.display_timeline and self._google_user.enabled_user and self._google_user.msg_template.strip():
-      try:
-        flag = xmpp.get_presence(self._google_user.jid)
-      except (xmpp.Error, DeadlineExceededError):
-        flag = False
-      if flag:
-        Db.set_datastore(Session(key_name=self._google_user.jid, shard=self._google_user.shard))
     modes = []
     if self._google_user.display_timeline & MODE_LIST:
       modes.append('list')
@@ -760,14 +751,6 @@ class XMPP_handler(webapp.RequestHandler):
       while tpl[-2::] == r'\n':
         tpl = tpl[:len(tpl) - 2] + '\n'
       self._google_user.msg_template = tpl
-      s = Session.get_by_key_name(self._google_user.jid)
-      if not s and tpl.strip() and self._google_user.display_timeline and self._google_user.enabled_user:
-        try:
-          flag = xmpp.get_presence(self._google_user.jid)
-        except (xmpp.Error, DeadlineExceededError):
-          flag = False
-        if flag:
-          Db.set_datastore(Session(key_name=self._google_user.jid, shard=self._google_user.shard))
     return _('MSG_TEMPLATE') % self._google_user.msg_template
 
   def func_datefmt(self, args):
@@ -804,13 +787,6 @@ class XMPP_handler(webapp.RequestHandler):
         twitter_name_ci = args[0].lower()
         if twitter_name_ci in twitter_users_name_ci:
           i = twitter_users_name_ci.index(twitter_name_ci)
-          if not self._google_user.enabled_user and self._google_user.display_timeline and self._google_user.msg_template.strip():
-            try:
-              flag = xmpp.get_presence(self._google_user.jid)
-            except (xmpp.Error, DeadlineExceededError):
-              flag = False
-            if flag:
-              Db.set_datastore(Session(key_name=self._google_user.jid, shard=self._google_user.shard))
           self._google_user.enabled_user = twitter_users_name[i]
           return _('ENABLED_TWITTER_USER_CHANGED') % self._google_user.enabled_user
     return _('NOT_ASSOCIATED_TWITTER_USER')
@@ -887,6 +863,7 @@ class XMPP_handler(webapp.RequestHandler):
         return _('OAUTH_URL') % redirect_url
       import oauth_proxy
       from google.appengine.api import urlfetch
+
       try:
         pin = oauth_proxy.login_oauth(redirect_url, args[0], args[1])
       except urlfetch.Error:
@@ -946,54 +923,8 @@ class XMPP_handler(webapp.RequestHandler):
         return ''
 
 
-class XMPP_Available_handler(webapp.RequestHandler):
-  def post(self):
-    jid = self.request.get('from').split('/')[0]
-    s = Session.get_by_key_name(jid)
-    if not s:
-      u = GoogleUser.get_by_jid(jid)
-      if u and u.enabled_user and u.display_timeline and u.msg_template.strip():
-        try:
-          Db.set_datastore(Session(key_name=jid, shard=u.shard))
-        except CapabilityDisabledError:
-          try:
-            xmpp.send_presence(jid, presence_type=xmpp.PRESENCE_SHOW_AWAY)
-          except xmpp.Error:
-            pass
-        except DeadlineExceededError:
-          pass
-
-
-class XMPP_Unavailable_handler(webapp.RequestHandler):
-  def post(self):
-    jid = self.request.get('from').split('/')[0]
-    s = Session.get_by_key_name(jid)
-    if s:
-      u = GoogleUser.get_by_jid(jid)
-      try:
-        if u:
-          try:
-            flag = xmpp.get_presence(jid)
-          except xmpp.Error:
-            flag = False
-          if not flag:
-            s.delete()
-        else:
-          s.delete()
-      except DeadlineExceededError:
-        pass
-
-
-class XMPP_Probe_handler(webapp.RequestHandler):
-  def post(self):
-    return
-
-
 def main():
-  application = webapp.WSGIApplication([('/_ah/xmpp/message/chat/', XMPP_handler),
-                                        ('/_ah/xmpp/presence/available/', XMPP_Available_handler),
-                                        ('/_ah/xmpp/presence/unavailable/', XMPP_Unavailable_handler),
-                                        ('/_ah/xmpp/presence/probe/', XMPP_Probe_handler)])
+  application = webapp.WSGIApplication([('/_ah/xmpp/message/chat/', XMPP_handler)])
   run_wsgi_app(application)
 
 if __name__ == "__main__":

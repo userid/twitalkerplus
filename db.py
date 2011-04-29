@@ -16,32 +16,6 @@ MODE_LIST = 2
 MODE_HOME = 1
 MODE_NONE = 0
 
-class Session(db.Model):
-  shard = db.IntegerProperty(required=True)
-
-  @staticmethod
-  def get_all(shard=None, cursor=None):
-    while True:
-      query = Session.all()
-      if cursor is not None:
-        query.with_cursor(cursor)
-      if shard is not None:
-        query.filter('shard =', int(shard))
-      try:
-        for q in query:
-          yield q
-      except db.Timeout:
-        while db.READ_CAPABILITY:
-          try:
-            cursor = query.cursor()
-          except db.Timeout:
-            pass
-          else:
-            break
-      else:
-        break
-
-
 class GoogleUser(db.Model):
   enabled_user = db.StringProperty(default='')
   shard = db.IntegerProperty(required=True)
@@ -262,6 +236,7 @@ class Db:
         data.put()
       except db.BadKeyError:
         pass
+
     i = 0
     while db.WRITE_CAPABILITY:
       try:
