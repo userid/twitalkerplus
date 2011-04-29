@@ -16,7 +16,7 @@ from google.appengine.api import xmpp, memcache
 from google.appengine.runtime import DeadlineExceededError
 from google.appengine.api.capabilities import CapabilitySet
 from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
+from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, DeadlineExceededError
 
 SHORT_COMMANDS = {
   '@': 'reply',
@@ -59,6 +59,8 @@ class XMPP_handler(webapp.RequestHandler):
         xmpp.send_presence(self.request.get('from'), presence_type=xmpp.PRESENCE_SHOW_AWAY)
       except xmpp.Error:
         pass
+    except DeadlineExceededError:
+      pass
 
   def process(self):
     global _locale
@@ -955,6 +957,8 @@ class XMPP_Available_handler(webapp.RequestHandler):
             xmpp.send_presence(jid, presence_type=xmpp.PRESENCE_SHOW_AWAY)
           except xmpp.Error:
             pass
+        except DeadlineExceededError:
+          pass
 
 
 class XMPP_Unavailable_handler(webapp.RequestHandler):
@@ -963,15 +967,18 @@ class XMPP_Unavailable_handler(webapp.RequestHandler):
     s = Session.get_by_key_name(jid)
     if s:
       u = GoogleUser.get_by_jid(jid)
-      if u:
-        try:
-          flag = xmpp.get_presence(jid)
-        except xmpp.Error:
-          flag = False
-        if not flag:
+      try:
+        if u:
+          try:
+            flag = xmpp.get_presence(jid)
+          except xmpp.Error:
+            flag = False
+          if not flag:
+            s.delete()
+        else:
           s.delete()
-      else:
-        s.delete()
+      except DeadlineExceededError:
+        pass
 
 
 class XMPP_Probe_handler(webapp.RequestHandler):
