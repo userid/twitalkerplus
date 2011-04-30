@@ -11,7 +11,7 @@ from google.appengine.api import xmpp
 from google.appengine.api.capabilities import CapabilitySet
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.runtime.apiproxy_errors import DeadlineExceededError, CapabilityDisabledError
+from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
 from db import Db, GoogleUser, TwitterUser, IdList, MODE_HOME, MODE_LIST, MODE_MENTION, MODE_DM
 
 MAX_DATASTORE_RETRY = 3
@@ -40,19 +40,7 @@ class cron_handler(webapp.RequestHandler):
           except xmpp.Error:
             pass
 
-  def process(self, u):
-    jid = u.key().name()
-    try:
-      flag = xmpp.get_presence(jid)
-    except (xmpp.Error, DeadlineExceededError):
-      flag = True
-    if not flag:
-      u.delete()
-      return
-    google_user = GoogleUser.get_by_jid(jid)
-    if google_user is None:
-      u.delete()
-      return
+  def process(self, google_user):
     time_delta = int(time()) - google_user.last_update
     if time_delta < google_user.interval * 60 - 30:
       return

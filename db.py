@@ -232,10 +232,7 @@ class Db:
   @staticmethod
   def set_datastore(data, max_retry=None):
     def datastore_set(model):
-      try:
-        data.put()
-      except db.BadKeyError:
-        pass
+      model.put()
 
     i = 0
     while db.WRITE_CAPABILITY:
