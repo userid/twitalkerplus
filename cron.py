@@ -14,8 +14,6 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError
 from db import Db, GoogleUser, TwitterUser, IdList, MODE_HOME, MODE_LIST, MODE_MENTION, MODE_DM
 
-MAX_DATASTORE_RETRY = 3
-
 class cron_handler(webapp.RequestHandler):
   def get(self, cron_id):
     cron_id = int(cron_id)
@@ -184,7 +182,7 @@ class cron_handler(webapp.RequestHandler):
         traceback.print_exc(file=err)
         logging.error(google_user.jid + ' DM:\n' + err.getvalue())
     google_user.last_update = int(time())
-    if Db.set_datastore(google_user, MAX_DATASTORE_RETRY):
+    if Db.set_datastore(google_user):
       if statuses_content.strip():
         while CapabilitySet('xmpp').is_enabled():
           try:

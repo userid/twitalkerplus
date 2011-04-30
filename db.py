@@ -230,11 +230,10 @@ class Db:
     return False
 
   @staticmethod
-  def set_datastore(data, max_retry=None):
+  def set_datastore(data):
     def datastore_set(model):
       model.put()
 
-    i = 0
     while db.WRITE_CAPABILITY:
       try:
         if data.is_saved():
@@ -244,9 +243,7 @@ class Db:
           db.run_in_transaction(datastore_set, data)
           Db.set_cache(data)
       except (db.Timeout, ApplicationError, db.TransactionFailedError, db.BadRequestError):
-        i += 1
-        if max_retry is not None and i > max_retry:
-          break
+        pass
       else:
         return True
     return False
