@@ -249,7 +249,7 @@ class Db:
       except (db.Timeout, ApplicationError, db.TransactionFailedError, db.BadRequestError):
         i += 1
         if max_retry is not None and i > max_retry:
-          return False
+          break
       else:
-        break
-    return True
+        return True
+    return False
