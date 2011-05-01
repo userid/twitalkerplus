@@ -657,7 +657,9 @@ class XMPP_handler(webapp.RequestHandler):
       if status is None:
         return ''
       if length > 1:
-        user_msg = ' '.join(args[1:]) + ' '
+        user_msg = ' '.join(args[1:])
+        if ord(user_msg[-1]) < 128:
+          user_msg += ' '
       else:
         user_msg = ''
       message = u'%sRT @%s:%s' % (user_msg, status['user']['screen_name'], status['text'])
