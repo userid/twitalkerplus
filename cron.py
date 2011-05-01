@@ -167,8 +167,8 @@ class cron_handler(webapp.RequestHandler):
         else:
           last = all_statuses[i]['id']
     if all_statuses:
-      IdList.flush(google_user.jid)
       statuses_content = utils.parse_statuses(all_statuses, filter_self=True, reverse=False)
+      IdList.flush(google_user.jid)
     if google_user.display_timeline & MODE_DM:
       try:
         statuses = api._process_result(dm_rpc)
