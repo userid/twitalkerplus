@@ -486,7 +486,7 @@ class Client():
 
     if not isinstance(headers, dict):
       headers = {}
-
+    headers['Accept-Encoding'] = 'gzip'
     is_multipart = method == 'POST' and headers.get('Content-Type', DEFAULT_CONTENT_TYPE) != DEFAULT_CONTENT_TYPE
 
     if body and method == "POST" and not is_multipart:
@@ -513,7 +513,16 @@ class Client():
     except urlfetch.Error:
       return ''
     else:
-      return result.content
+      if result.headers.get('content-encoding', None) == 'gzip':
+        import gzip
+        from StringIO import StringIO
+        try:
+          content = gzip.GzipFile(fileobj=StringIO(result.content)).read()
+        except IOError:
+          content = result.content
+      else:
+        content = result.content
+      return content
 
 
 class SignatureMethod(object):

@@ -443,12 +443,21 @@ class Api(object):
       response = rpc.get_result()
     except Exception:
       return None
+    if response.headers.get('content-encoding', None) == 'gzip':
+      import gzip
+      from StringIO import StringIO
+      try:
+        content = gzip.GzipFile(fileobj=StringIO(response.content)).read()
+      except IOError:
+        content = response.content
+    else:
+      content = response.content
     try:
-      json = simplejson.loads(response.content)
+      json = simplejson.loads(content)
     except ValueError:
       raise TwitterInternalServerError('500 Internal Server Error')
     except BaseException, e:
-      if '500 Internal Server Error' in response.content:
+      if '500 Internal Server Error' in content:
         raise TwitterInternalServerError('500 Internal Server Error')
       else:
         raise TwitterError(e.message)
