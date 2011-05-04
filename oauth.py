@@ -514,11 +514,10 @@ class Client():
       return ''
     else:
       if result.headers.get('content-encoding', None) == 'gzip':
-        import gzip
-        from StringIO import StringIO
+        import zlib
         try:
-          content = gzip.GzipFile(fileobj=StringIO(result.content)).read()
-        except IOError:
+          content = zlib.decompress(result.content, 16+zlib.MAX_WBITS)
+        except zlib.error:
           content = result.content
       else:
         content = result.content

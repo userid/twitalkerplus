@@ -444,11 +444,10 @@ class Api(object):
     except Exception:
       return None
     if response.headers.get('content-encoding', None) == 'gzip':
-      import gzip
-      from StringIO import StringIO
+      import zlib
       try:
-        content = gzip.GzipFile(fileobj=StringIO(response.content)).read()
-      except IOError:
+        content = zlib.decompress(response.content, 16+zlib.MAX_WBITS)
+      except zlib.error:
         content = response.content
     else:
       content = response.content
