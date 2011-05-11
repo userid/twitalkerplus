@@ -560,7 +560,7 @@ class XMPP_handler(webapp.RequestHandler):
     else:
       raise NotImplementedError
     try:
-      statuses = self._api.get_list_statuses(user=user, id=list_id, page=int(page))
+      statuses = self._api.get_list_statuses(user=user, id=list_id.encode('UTF8'), page=int(page))
     except twitter.TwitterError, e:
       if 'Not found' in e.message:
         return _('LIST_NOT_FOUND') % args[0]
